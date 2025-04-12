@@ -1,0 +1,31 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.ipynb_checkpoints
+
+# Virtual environments
+.venv
+
+# Ruff linter
+.ruff_cache/
+
+# Pytest
+.pytest_cache/
+
+# Mac OS
+.DS_Store
+
+# env files
+.env
+env
+
+# Weights and wandb runs
+notebooks/mri
+notebooks/bsd
+notebooks/sidd_patches
+notebooks/run-*
+notebooks/wandb

@@ -1,0 +1,77 @@
+[project]
+name = "denoising"
+version = "0.1.0"
+description = "Image denoising using Fourier Neural Operator"
+readme = "README.md"
+authors = [
+    {name = "Dmitry Nesterov", email = "dim.nesterov2015@gmail.com" },
+]
+requires-python = ">=3.10.16,<3.11"
+dependencies = [
+    "numpy>=2.2.4",
+    "opencv-python-headless>=4.11.0.86",
+    "pandas>=2.2.3",
+    "pydantic>=2.11.3",
+    "pydantic-settings>=2.8.1",
+    "scikit-image>=0.25.2",
+    "torch>=2.6.0",
+    "torchmetrics>=1.7.1",
+    "torchvision>=0.21.0",
+    "neuraloperator @ git+https://github.com/neuraloperator/neuraloperator.git",
+    "tqdm>=4.67.1",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["denoising", "config"]
+
+[dependency-groups]
+dev = [
+    "jupyterlab>=4.4.0",
+    "ruff>=0.11.5",
+    "seaborn-image>=0.10.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D100",      # Missing docstring in public module
+    "D101",      # Missing docstring in public class
+    "D102",      # Missing docstring in public method
+    "D103",      # Missing docstring in public function
+    "D104",      # Missing docstring in public package
+    "D105",      # Missing docstring in magic method
+    "D107",      # Missing docstring in public package
+    "D203",      # Incorrect-blank-line-before-class
+    "D212",      # Multi-line-summary-first-line
+    "D401",      # First line of docstring should be in imperative mood
+    "Q000",      # Flake8-quotes conflicts with ruff formatter
+    "Q003",      # Flake8-quotes conflicts with ruff formatter
+    "COM812",    # Conflict with formatter
+    "F401",      # __all__ in __init__
+    "FBT001",    # Boolean-typed positional argument in function definition
+    "FBT002",    # Boolean default positional argument in function definition
+    "FBT003",    # Boolean positional value in function call
+]
+
+[tool.ruff.lint.per-file-ignores]
+"notebooks/*" = ["ALL"]
+"scripts/*" = [
+    "INP001",    # File is part of an implicit namespace package
+    "G004",      # Logging statements with f-strings
+    "EXE003",    # Shebang should contain `python`
+]
+"tests/*" = [
+    "S101",      # Use of assert detected
+]
+
+[tool.ruff.format]
+quote-style = "single"
