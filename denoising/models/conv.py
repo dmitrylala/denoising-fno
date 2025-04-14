@@ -49,6 +49,7 @@ class SpectralConv2D(nn.Module):
 
         # n_modes is the total number of modes kept along each dimension
         self.n_modes = n_modes
+        self.order = len(self.n_modes)
 
         self.fft_norm = fft_norm
 
@@ -70,7 +71,7 @@ class SpectralConv2D(nn.Module):
         self.bias = None
         if bias:
             self.bias = nn.Parameter(
-                init_std * torch.randn(*((self.out_channels,) + (1,) * len(self.n_modes))),
+                init_std * torch.randn(*((self.out_channels,) + (1,) * self.order)),
             )
 
     @property
@@ -93,7 +94,12 @@ class SpectralConv2D(nn.Module):
         """Forward for 2d case."""
         batchsize, _, height, width = x.shape
 
-        x = torch.fft.rfft2(x.float(), norm=self.fft_norm, dim=(-2, -1))
+        fft_dims = list(range(-self.order, 0))
+
+        x = torch.fft.rfft2(x.float(), norm=self.fft_norm, dim=fft_dims)
+
+        if self.order > 1:
+            x = torch.fft.fftshift(x, dim=fft_dims[:-1])
 
         # The output will be of size (batch_size, self.out_channels, x.size(-2), x.size(-1)//2 + 1)
         out_fft = torch.zeros(
@@ -120,6 +126,9 @@ class SpectralConv2D(nn.Module):
 
         # Lower block
         out_fft[slices1] = self._contract(x[slices1], self.weight[slices0].to(x.device))
+
+        if self.order > 1:
+            out_fft = torch.fft.fftshift(out_fft, dim=fft_dims[:-1])
 
         x = torch.fft.irfft2(out_fft, s=(height, width), dim=(-2, -1), norm=self.fft_norm)
 
