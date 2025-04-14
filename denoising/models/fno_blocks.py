@@ -57,6 +57,7 @@ class FNOBlocks(nn.Module):
         channel_mlp_dropout: float = 0,
         channel_mlp_expansion: float = 0.5,
         non_linearity: nn.Module = gelu,
+        rank: float = 0.42,
     ) -> None:
         super().__init__()
         if isinstance(n_modes, int):
@@ -67,15 +68,14 @@ class FNOBlocks(nn.Module):
         self.n_layers = n_layers
         self.non_linearity = non_linearity
 
+        conv_kwargs = {
+            'in_channels': in_channels,
+            'out_channels': out_channels,
+            'n_modes': self.n_modes,
+            'rank': rank,
+        }
         self.convs = nn.ModuleList(
-            [
-                SpectralConv2D(
-                    in_channels,
-                    out_channels,
-                    self.n_modes,
-                )
-                for _ in range(n_layers)
-            ],
+            [SpectralConv2D(**conv_kwargs) for _ in range(n_layers)],
         )
 
         self.fno_skips = nn.ModuleList(

@@ -1,6 +1,8 @@
 import tensorly as tl
 import torch
+from neuralop.layers.spectral_convolution import _contract_tucker
 from tensorly.plugins import use_opt_einsum
+from tltorch.factorized_tensors.core import FactorizedTensor
 from torch import nn
 
 tl.set_backend('pytorch')
@@ -11,14 +13,9 @@ __all__ = [
 ]
 
 
-def contract_dense(x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
-    # (batch, in_channel, x ,y), (in_channel, out_channel, x, y) -> (batch, out_channel, x, y)
-    return tl.einsum('bixy,ioxy->boxy', x, weight)
-
-
 class SpectralConv2D(nn.Module):
     """
-    Generic N-Dimensional Fourier Neural Operator.
+    2D Fourier Neural Operator.
 
     Parameters
     ----------
@@ -28,19 +25,21 @@ class SpectralConv2D(nn.Module):
         Number of output channels
     n_modes : int tuple
         total number of modes to keep in Fourier Layer, along each dim
-    bias : bool, optional
-        use bias or not, by default True
+    rank : float or rank, optional
+        Rank of the tensor factorization of the Fourier weights, by default 0.5
+        Ignored if ``factorization is None``
     fft_norm : str, optional
-        by default 'forward'
+        by default 'backward'
 
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         in_channels: int,
         out_channels: int,
         n_modes: int | tuple[int],
         bias: bool = True,
+        rank: float = 0.5,
         fft_norm: str = 'forward',
     ) -> None:
         super().__init__()
@@ -57,10 +56,16 @@ class SpectralConv2D(nn.Module):
         weight_shape = (in_channels, out_channels, *self.n_modes)
 
         # Create/init spectral weight tensor
-        self.weight = torch.zeros(weight_shape, dtype=torch.cfloat)
+        self.weight = FactorizedTensor.new(
+            weight_shape,
+            rank=rank,
+            factorization='tucker',
+            fixed_rank_modes=None,
+            dtype=torch.cfloat,
+        )
         self.weight.normal_(0, init_std)
 
-        self._contract = contract_dense
+        self._contract = _contract_tucker
 
         self.bias = None
         if bias:
@@ -85,6 +90,7 @@ class SpectralConv2D(nn.Module):
         self._n_modes = n_modes
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward for 2d case."""
         batchsize, _, height, width = x.shape
 
         x = torch.fft.rfft2(x.float(), norm=self.fft_norm, dim=(-2, -1))
