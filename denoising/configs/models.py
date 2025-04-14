@@ -9,7 +9,7 @@ __all__ = [
 
 
 class ModelConfig(BaseModel):
-    model_config = SettingsConfigDict(arbitrary_types_allowed=True)
+    model_config = SettingsConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     fno_cfg: dict
     weights_path: ExistingPath | None

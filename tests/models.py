@@ -4,10 +4,8 @@ import torch
 from denoising.models import FNO
 
 
-@pytest.mark.parametrize('factorization', ['tucker'])
-@pytest.mark.parametrize('n_dim', [1, 2, 3, 4])
 @pytest.mark.parametrize('lifting_channel_ratio', [1, 2])
-def test_fno(factorization: str, n_dim: int, lifting_channel_ratio: int) -> None:
+def test_fno(lifting_channel_ratio: int) -> None:
     if torch.cuda.is_available():
         device = 'cuda'
         s = 16
@@ -25,7 +23,7 @@ def test_fno(factorization: str, n_dim: int, lifting_channel_ratio: int) -> None
         batch_size = 3
         n_layers = 2
 
-    rank = 0.2
+    n_dim = 2
     size = (s,) * n_dim
     n_modes = (modes,) * n_dim
     model = FNO(
@@ -33,8 +31,6 @@ def test_fno(factorization: str, n_dim: int, lifting_channel_ratio: int) -> None
         out_channels=1,
         hidden_channels=width,
         n_modes=n_modes,
-        factorization=factorization,
-        rank=rank,
         n_layers=n_layers,
         fc_channels=fc_channels,
         lifting_channel_ratio=lifting_channel_ratio,

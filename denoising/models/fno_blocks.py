@@ -4,7 +4,7 @@ from neuralop.layers.skip_connections import Flattened1dConv
 from torch import nn
 from torch.nn.functional import gelu
 
-from .conv import SpectralConv
+from .conv import SpectralConv2D
 from .soft_gating import SoftGating
 
 __all__ = [
@@ -38,11 +38,6 @@ class FNOBlocks(nn.Module):
     non_linearity : torch.nn.F module, optional
         nonlinear activation function to use between layers, by default F.gelu
 
-    Other Parameters
-    ----------------
-    rank : float, optional
-        rank parameter for SpectralConv, by default 0.5
-
     References
     ----------
     .. [1] Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential
@@ -59,11 +54,9 @@ class FNOBlocks(nn.Module):
         out_channels: int,
         n_modes: int | tuple[int],
         n_layers: int = 1,
-        rank: float = 0.5,
         channel_mlp_dropout: float = 0,
         channel_mlp_expansion: float = 0.5,
         non_linearity: nn.Module = gelu,
-        factorization: str = 'tucker',
     ) -> None:
         super().__init__()
         if isinstance(n_modes, int):
@@ -76,12 +69,10 @@ class FNOBlocks(nn.Module):
 
         self.convs = nn.ModuleList(
             [
-                SpectralConv(
+                SpectralConv2D(
                     in_channels,
                     out_channels,
                     self.n_modes,
-                    rank=rank,
-                    factorization=factorization,
                 )
                 for _ in range(n_layers)
             ],

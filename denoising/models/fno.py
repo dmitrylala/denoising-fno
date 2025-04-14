@@ -54,8 +54,6 @@ class FNO(BaseModel):
         projection_channel_ratio * hidden_channels (e.g. default 512)
     non_linearity : nn.Module, optional
         Non-Linear activation function module to use, by default F.gelu
-    rank : float, optional
-        tensor rank to use in above factorization, by default 1.0
 
     References
     ----------
@@ -75,8 +73,6 @@ class FNO(BaseModel):
         lifting_channel_ratio: int = 2,
         projection_channel_ratio: int = 2,
         non_linearity: nn.Module = gelu,
-        factorization: str = 'tucker',
-        rank: float = 1.0,
         **_: dict[str, Any],
     ) -> None:
         super().__init__()
@@ -106,9 +102,7 @@ class FNO(BaseModel):
             out_channels=hidden_channels,
             n_modes=self.n_modes,
             non_linearity=non_linearity,
-            rank=rank,
             n_layers=n_layers,
-            factorization=factorization,
         )
 
         # if adding a positional embedding, add those channels to lifting
