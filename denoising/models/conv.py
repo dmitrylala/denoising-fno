@@ -18,7 +18,7 @@ use_opt_einsum('optimal')
 EINSUM_SYMBOLS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 __all__ = [
-    'HartleySpectralConv',
+    'HartleySeparableSpectralConv',
     'SpectralConv',
 ]
 
@@ -217,7 +217,7 @@ class SpectralConv(nn.Module):
         return x
 
 
-class HartleySpectralConv(SpectralConv):
+class HartleySeparableSpectralConv(SpectralConv):
     def __init__(  # noqa: PLR0913
         self,
         in_channels: int,

@@ -23,7 +23,7 @@ def get_model_configs(weights_dir: Path) -> dict[str, ModelConfig]:
 
     fno_cfg_mri_hno_separable = deepcopy(fno_cfg_mri)
     fno_cfg_mri_hno_separable['factorization'] = 'dense'
-    fno_cfg_mri_hno_separable['spectral'] = 'hartley'
+    fno_cfg_mri_hno_separable['spectral'] = 'hartley-separable'
 
     fno_cfg_sidd = deepcopy(fno_cfg_mri)
     fno_cfg_sidd['in_channels'] = 3

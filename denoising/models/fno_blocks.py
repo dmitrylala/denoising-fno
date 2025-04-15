@@ -4,7 +4,7 @@ from neuralop.layers.skip_connections import Flattened1dConv
 from torch import nn
 from torch.nn.functional import gelu
 
-from .conv import HartleySpectralConv, SpectralConv
+from .conv import HartleySeparableSpectralConv, SpectralConv
 from .soft_gating import SoftGating
 
 __all__ = [
@@ -80,8 +80,8 @@ class FNOBlocks(nn.Module):
         conv_module = None
         if spectral == 'fourier':
             conv_module = SpectralConv
-        elif spectral == 'hartley':
-            conv_module = HartleySpectralConv
+        elif spectral == 'hartley-separable':
+            conv_module = HartleySeparableSpectralConv
         else:
             msg = f'Unknown spectral module: {spectral}'
             raise ValueError(msg)
