@@ -21,6 +21,11 @@ def get_datasets_configs(data_dir: Path) -> dict[str, FNODatasetConfig]:
 
     return {
         # MRI datasets
+        'mri_pm_train': make_fno_dset_config(
+            mri_root,
+            data_dir / 'MRI/lists/IXI_0_1/train_pmLR_gibbsnoiseLR_train.csv',
+            pm_load_params,
+        ),
         'mri_pm_test': make_fno_dset_config(
             mri_root,
             data_dir / 'MRI/lists/IXI_0_1/train_pmLR_gibbsnoiseLR_val.csv',
@@ -32,8 +37,15 @@ def get_datasets_configs(data_dir: Path) -> dict[str, FNODatasetConfig]:
             gt_load_params,
         ),
         # BSD datasets
+        'bsd_synth_0.01_train': make_bsd_dset_config(bsd_root, 0.01, 'train'),
         'bsd_synth_0.01_test': make_bsd_dset_config(bsd_root, 0.01, 'test'),
         # SIDD datasets, patches
+        'sidd_train': make_fno_dset_config(
+            sidd_root / 'train',
+            sidd_root / 'patches_train.csv',
+            sidd_load_params,
+            normalize=True,
+        ),
         'sidd_test': make_fno_dset_config(
             sidd_root / 'val',
             sidd_root / 'patches_val.csv',
