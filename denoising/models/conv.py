@@ -5,6 +5,14 @@ from tltorch.factorized_tensors.core import FactorizedTensor
 from tltorch.factorized_tensors.factorized_tensors import TuckerTensor
 from torch import nn
 
+from .dht import (
+    even,
+    flip,
+    isdht2d,
+    odd,
+    sdht2d,
+)
+
 tl.set_backend('pytorch')
 use_opt_einsum('optimal')
 EINSUM_SYMBOLS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -209,103 +217,41 @@ class SpectralConv(nn.Module):
         return x
 
 
-def flip(x: torch.Tensor, axes: int | tuple[int]) -> torch.Tensor:
-    if isinstance(axes, int):
-        axes = (axes,)
-
-    flipped = x.clone()
-    for ax in axes:
-        flipped = torch.roll(torch.flip(x, dims=(ax,)), shifts=(1,), dims=(ax,))
-    return flipped
-
-
-def sdht2d(
-    x: torch.Tensor,
-    norm: str,
-    dim: tuple[int],
-    s: tuple[int] | None = None,
-    inv: bool = False,
-) -> torch.Tensor:
-    if inv:
-        fft = torch.fft.fft2(x.float(), norm=norm, dim=dim, s=s)
-    else:
-        fft = torch.fft.rfft2(x.float(), norm=norm, dim=dim, s=s)
-    fft_flipped_y = flip(fft, axes=3)
-    return fft_flipped_y.real - fft.imag
-
-
-def even(x: torch.Tensor) -> torch.Tensor:
-    flipped = flip(x, axes=(2, 3))
-    return (x + flipped) / 2
-
-
-def odd(x: torch.Tensor) -> torch.Tensor:
-    flipped = flip(x, axes=(2, 3))
-    return (x - flipped) / 2
-
-
-def isdht2d(x: torch.Tensor, s: tuple[int], norm: str, dim: tuple[int]) -> torch.Tensor:
-    n = x.size()[-2:].numel()
-    x_dht = sdht2d(x, norm=norm, dim=dim, s=s, inv=True)
-    return 1.0 / n * x_dht
-
-
-class HartleySpectralConv(nn.Module):
-    def __init__(
+class HartleySpectralConv(SpectralConv):
+    def __init__(  # noqa: PLR0913
         self,
         in_channels: int,
         out_channels: int,
         n_modes: int | tuple[int],
-        bias: bool = True,
+        factorization: str,
+        rank: float = 0.5,
         fft_norm: str = 'forward',
+        bias: bool = True,
     ) -> None:
-        super().__init__()
-
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-
-        # n_modes is the total number of modes kept along each dimension
-        self.n_modes = n_modes
-        self.order = len(self.n_modes)
-
-        self.fft_norm = fft_norm
+        super().__init__(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            n_modes=n_modes,
+            factorization=factorization,
+            rank=rank,
+            fft_norm=fft_norm,
+            bias=bias,
+        )
 
         init_std = (2 / (in_channels + out_channels)) ** 0.5
-        weight_shape = (in_channels, out_channels, *self.n_modes)
+        weight_shape = (in_channels, out_channels, *self.max_n_modes)
 
         # Create/init spectral weight tensor
-        self.weights1 = nn.Parameter(
-            torch.empty(*weight_shape, dtype=torch.float).normal_(std=init_std),
+        self.weight = FactorizedTensor.new(
+            weight_shape,
+            rank=rank,
+            factorization=factorization,
+            fixed_rank_modes=None,
+            dtype=torch.float,
         )
-        self.weights2 = nn.Parameter(
-            torch.randn(*weight_shape, dtype=torch.float).normal_(std=init_std),
-        )
+        self.weight.normal_(0, init_std)
 
-        self._contract = contract_dense
-
-        self.bias = None
-        if bias:
-            self.bias = nn.Parameter(
-                init_std * torch.randn(*((self.out_channels,) + (1,) * self.order)),
-            )
-
-    @property
-    def n_modes(self) -> int | tuple[int]:
-        return self._n_modes
-
-    @n_modes.setter
-    def n_modes(self, n_modes: int | tuple[int]) -> None:
-        if isinstance(n_modes, int):  # Should happen for 1D FNO only  # noqa: SIM108
-            n_modes = [n_modes]
-        else:
-            n_modes = list(n_modes)
-        # the real FFT is skew-symmetric, so the last mode has a redundacy if our data is real in space  # noqa: E501
-        # As a design choice we do the operation here to avoid users dealing with the +1
-        # if we use the full FFT we cannot cut off informtion from the last mode
-        n_modes[-1] = n_modes[-1] // 2 + 1
-        self._n_modes = n_modes
-
-    def mul(self, x: torch.Tensor, w: nn.Parameter) -> torch.Tensor:
+    def mul(self, x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
         x_dht_flipy = flip(x, axes=3)
         w_dht_flipy = flip(w, axes=3)
 
@@ -317,41 +263,61 @@ class HartleySpectralConv(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward for 2d case."""
-        batchsize, _, height, width = x.shape
+        batchsize, _, *mode_sizes = x.shape
 
-        dht_dims = list(range(-self.order, 0))
+        fft_size = list(mode_sizes)
+        fft_size[-1] = fft_size[-1] // 2 + 1  # Redundant last coefficient in real spatial data
+
+        # Compute Fourier coeffcients
+        fft_dims = list(range(-self.order, 0))
 
         # compute x_dht
-        x = sdht2d(x, norm=self.fft_norm, dim=dht_dims)
+        x = sdht2d(x, norm=self.fft_norm, dim=fft_dims)
 
         # The output will be of size (batch_size, self.out_channels, x.size(-2), x.size(-1)//2 + 1)
         out_dht = torch.zeros(
-            [batchsize, self.out_channels, height, width // 2 + 1],
-            dtype=x.dtype,
+            [batchsize, self.out_channels, *fft_size],
             device=x.device,
+            dtype=torch.cfloat,
         )
 
-        slices0 = (
-            slice(None),
-            slice(None),
-            slice(self.n_modes[0] // 2),
-            slice(self.n_modes[1]),
-        )
-        slices1 = (
-            slice(None),
-            slice(None),
-            slice(-self.n_modes[0] // 2, None),
-            slice(self.n_modes[1]),
-        )
+        # if current modes are less than max, start indexing modes closer to the center of the weight tensor  # noqa: E501
+        starts = [
+            (max_modes - min(size, n_mode))
+            for (size, n_mode, max_modes) in zip(fft_size, self.n_modes, self.n_modes, strict=False)
+        ]
 
-        # Upper block (truncate high frequencies).
-        out_dht[slices0] = self.mul(x[slices0], self.weights1[slices1].to(x.device))
+        # weights have shape (in_channels, out_channels, modes_x, ...)
+        slices_w = [slice(None), slice(None)]  # in_channels, out_channels
 
-        # Lower block
-        out_dht[slices1] = self.mul(x[slices1], self.weights2[slices0].to(x.device))
+        # The last mode already has redundant half removed in real FFT
+        slices_w += [
+            slice(start // 2, -start // 2) if start else slice(start, None) for start in starts[:-1]
+        ]
+        slices_w += [slice(None, -starts[-1]) if starts[-1] else slice(None)]
 
-        x = isdht2d(out_dht, s=(height, width), norm=self.fft_norm, dim=dht_dims)
+        weight = self.weight[slices_w]
+
+        # drop first two dims (in_channels, out_channels)
+        weight_start_idx = 2
+        starts = [
+            (size - min(size, n_mode))
+            for (size, n_mode) in zip(
+                list(x.shape[2:]),
+                list(weight.shape[weight_start_idx:]),
+                strict=False,
+            )
+        ]
+        slices_x = [slice(None), slice(None)]  # Batch_size, channels
+
+        slices_x += [
+            slice(start // 2, -start // 2) if start else slice(start, None) for start in starts[:-1]
+        ]
+        # The last mode already has redundant half removed
+        slices_x += [slice(None, -starts[-1]) if starts[-1] else slice(None)]
+        out_dht[slices_x] = self.mul(x[slices_x], weight)
+
+        x = isdht2d(out_dht, s=mode_sizes, dim=fft_dims, norm=self.fft_norm)
 
         if self.bias is not None:
             x = x + self.bias

@@ -18,6 +18,13 @@ def get_model_configs(weights_dir: Path) -> dict[str, ModelConfig]:
         'rank': 0.42,
     }
 
+    fno_cfg_mri_dense = deepcopy(fno_cfg_mri)
+    fno_cfg_mri_dense['factorization'] = 'dense'
+
+    fno_cfg_mri_hno_separable = deepcopy(fno_cfg_mri)
+    fno_cfg_mri_hno_separable['factorization'] = 'dense'
+    fno_cfg_mri_hno_separable['spectral'] = 'hartley'
+
     fno_cfg_sidd = deepcopy(fno_cfg_mri)
     fno_cfg_sidd['in_channels'] = 3
     fno_cfg_sidd['out_channels'] = 3
@@ -37,6 +44,16 @@ def get_model_configs(weights_dir: Path) -> dict[str, ModelConfig]:
         ),
         'mri-fno-custom': make_model_config(
             fno_cfg_mri, weights_dir / 'mri/run-8-weights.pt', 'FNO'
+        ),
+        'mri-fno-dense': make_model_config(
+            fno_cfg_mri_dense,
+            weights_dir / 'mri/run-13-weights.pt',
+            'FNO',
+        ),
+        'mri-hno-separable': make_model_config(
+            fno_cfg_mri_hno_separable,
+            weights_dir / 'mri/run-14-weights.pt',
+            'FNO',
         ),
         # trained in SIDD patches
         'sidd-fno-run2': make_model_config(

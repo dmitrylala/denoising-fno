@@ -7,6 +7,7 @@ from .config_utils import (
     make_model_config,
 )
 from .configs import Environment
+from .data import DatasetRegistry
 from .evaluator import Evaluator
 from .metrics import Metrics
 from .models import ModelRegistry

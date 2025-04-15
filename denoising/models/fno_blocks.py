@@ -74,12 +74,12 @@ class FNOBlocks(nn.Module):
             'in_channels': in_channels,
             'out_channels': out_channels,
             'n_modes': self.n_modes,
+            'rank': rank,
+            'factorization': factorization,
         }
         conv_module = None
         if spectral == 'fourier':
             conv_module = SpectralConv
-            conv_kwargs['rank'] = rank
-            conv_kwargs['factorization'] = factorization
         elif spectral == 'hartley':
             conv_module = HartleySpectralConv
         else:
