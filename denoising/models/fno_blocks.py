@@ -4,7 +4,7 @@ from neuralop.layers.skip_connections import Flattened1dConv
 from torch import nn
 from torch.nn.functional import gelu
 
-from .conv import SpectralConv2D
+from .conv import HartleySpectralConv, SpectralConv
 from .soft_gating import SoftGating
 
 __all__ = [
@@ -58,6 +58,8 @@ class FNOBlocks(nn.Module):
         channel_mlp_expansion: float = 0.5,
         non_linearity: nn.Module = gelu,
         rank: float = 0.42,
+        factorization: str = 'tucker',
+        spectral: str = 'fourier',
     ) -> None:
         super().__init__()
         if isinstance(n_modes, int):
@@ -72,10 +74,20 @@ class FNOBlocks(nn.Module):
             'in_channels': in_channels,
             'out_channels': out_channels,
             'n_modes': self.n_modes,
-            'rank': rank,
         }
+        conv_module = None
+        if spectral == 'fourier':
+            conv_module = SpectralConv
+            conv_kwargs['rank'] = rank
+            conv_kwargs['factorization'] = factorization
+        elif spectral == 'hartley':
+            conv_module = HartleySpectralConv
+        else:
+            msg = f'Unknown spectral module: {spectral}'
+            raise ValueError(msg)
+
         self.convs = nn.ModuleList(
-            [SpectralConv2D(**conv_kwargs) for _ in range(n_layers)],
+            [conv_module(**conv_kwargs) for _ in range(n_layers)],
         )
 
         self.fno_skips = nn.ModuleList(

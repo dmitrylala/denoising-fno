@@ -1,1 +1,1 @@
-from .models import model_load_configs
+from .models import get_model_configs

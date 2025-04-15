@@ -6,4 +6,4 @@ __all__ = [
 
 
 def count_parameters(model: nn.Module) -> int:
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return sum([p.numel() * 2 if p.is_complex() else p.numel() for p in model.parameters()])

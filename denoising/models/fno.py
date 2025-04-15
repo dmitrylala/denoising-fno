@@ -74,7 +74,9 @@ class FNO(BaseModel):
         projection_channel_ratio: int = 2,
         non_linearity: nn.Module = gelu,
         rank: float = 0.42,
-        **_: dict[str, Any],
+        factorization: str = 'tucker',
+        spectral: str = 'fourier',
+        **_,  # noqa: ANN003
     ) -> None:
         super().__init__()
         self.n_dim = len(n_modes)
@@ -105,6 +107,8 @@ class FNO(BaseModel):
             non_linearity=non_linearity,
             n_layers=n_layers,
             rank=rank,
+            factorization=factorization,
+            spectral=spectral,
         )
 
         # if adding a positional embedding, add those channels to lifting

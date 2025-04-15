@@ -70,6 +70,9 @@ ignore = [
     "G004",      # Logging statements with f-strings
     "EXE003",    # Shebang should contain `python`
 ]
+"config/*" = [
+    "E501",      # Line too long
+]
 "tests/*" = [
     "S101",      # Use of assert detected
 ]
