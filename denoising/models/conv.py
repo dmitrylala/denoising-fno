@@ -6,8 +6,10 @@ from tltorch.factorized_tensors.factorized_tensors import TuckerTensor
 from torch import nn
 
 from .dht import (
+    dht2d,
     even,
     flip,
+    idht2d,
     isdht2d,
     odd,
     sdht2d,
@@ -19,7 +21,8 @@ EINSUM_SYMBOLS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 __all__ = [
     'HartleySeparableSpectralConv',
-    'SpectralConv',
+    'HartleySpectralConv',
+    'SpectralConv'
 ]
 
 
@@ -318,6 +321,79 @@ class HartleySeparableSpectralConv(SpectralConv):
         out_dht[slices_x] = self.mul(x[slices_x], weight)
 
         x = isdht2d(out_dht, s=mode_sizes, dim=fft_dims, norm=self.fft_norm)
+
+        if self.bias is not None:
+            x = x + self.bias
+
+        return x
+
+
+class HartleySpectralConv(HartleySeparableSpectralConv):
+    # R_H = P_HE * Q_H + P_HO * Q_H(-u,-v)  # noqa: ERA001
+    def mul(self, x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
+        x_even = even(x)
+        x_odd = odd(x)
+        return (
+            self._contract(x_even, w)
+            + self._contract(x_odd, flip(w, (-2, -1)))
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        batchsize, _, *mode_sizes = x.shape
+
+        fft_size = list(mode_sizes)
+        fft_size[-1] = fft_size[-1] // 2 + 1  # Redundant last coefficient in real spatial data
+
+        # Compute Fourier coeffcients
+        fft_dims = list(range(-self.order, 0))
+
+        # compute x_dht
+        x = dht2d(x, norm=self.fft_norm, dim=fft_dims)
+
+        # The output will be of size (batch_size, self.out_channels, x.size(-2), x.size(-1)//2 + 1)
+        out_dht = torch.zeros(
+            [batchsize, self.out_channels, *fft_size],
+            device=x.device,
+            dtype=torch.cfloat,
+        )
+
+        # if current modes are less than max, start indexing modes closer to the center of the weight tensor  # noqa: E501
+        starts = [
+            (max_modes - min(size, n_mode))
+            for (size, n_mode, max_modes) in zip(fft_size, self.n_modes, self.n_modes, strict=False)
+        ]
+
+        # weights have shape (in_channels, out_channels, modes_x, ...)
+        slices_w = [slice(None), slice(None)]  # in_channels, out_channels
+
+        # The last mode already has redundant half removed in real FFT
+        slices_w += [
+            slice(start // 2, -start // 2) if start else slice(start, None) for start in starts[:-1]
+        ]
+        slices_w += [slice(None, -starts[-1]) if starts[-1] else slice(None)]
+
+        weight = self.weight[slices_w]
+
+        # drop first two dims (in_channels, out_channels)
+        weight_start_idx = 2
+        starts = [
+            (size - min(size, n_mode))
+            for (size, n_mode) in zip(
+                list(x.shape[2:]),
+                list(weight.shape[weight_start_idx:]),
+                strict=False,
+            )
+        ]
+        slices_x = [slice(None), slice(None)]  # Batch_size, channels
+
+        slices_x += [
+            slice(start // 2, -start // 2) if start else slice(start, None) for start in starts[:-1]
+        ]
+        # The last mode already has redundant half removed
+        slices_x += [slice(None, -starts[-1]) if starts[-1] else slice(None)]
+        out_dht[slices_x] = self.mul(x[slices_x], weight)
+
+        x = idht2d(out_dht, s=mode_sizes, dim=fft_dims, norm=self.fft_norm)
 
         if self.bias is not None:
             x = x + self.bias

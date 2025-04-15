@@ -34,17 +34,37 @@ def sdht2d(
     return fft_flipped_y.real - fft.imag
 
 
+def dht2d(
+    x: torch.Tensor,
+    norm: str,
+    dim: tuple[int],
+    s: tuple[int] | None = None,
+    inv: bool = False,
+) -> torch.Tensor:
+    if inv:
+        fft = torch.fft.fft2(x.float(), norm=norm, dim=dim, s=s)
+    else:
+        fft = torch.fft.rfft2(x.float(), norm=norm, dim=dim, s=s)
+    return fft.real - fft.imag
+
+
 def even(x: torch.Tensor) -> torch.Tensor:
-    flipped = flip(x, axes=(2, 3))
+    flipped = flip(x, axes=(-2, -1))
     return (x + flipped) / 2
 
 
 def odd(x: torch.Tensor) -> torch.Tensor:
-    flipped = flip(x, axes=(2, 3))
+    flipped = flip(x, axes=(-2, -1))
     return (x - flipped) / 2
 
 
 def isdht2d(x: torch.Tensor, s: tuple[int], norm: str, dim: tuple[int]) -> torch.Tensor:
     n = x.size()[-2:].numel()
     x_dht = sdht2d(x, norm=norm, dim=dim, s=s, inv=True)
+    return 1.0 / n * x_dht
+
+
+def idht2d(x: torch.Tensor, s: tuple[int], norm: str, dim: tuple[int]) -> torch.Tensor:
+    n = x.size()[-2:].numel()
+    x_dht = dht2d(x, norm=norm, dim=dim, s=s, inv=True)
     return 1.0 / n * x_dht
