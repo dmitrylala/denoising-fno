@@ -2,7 +2,7 @@ import pytest
 import torch
 from neuralop.layers.spectral_convolution import SpectralConv as SpecGt
 
-from denoising.models.conv import SpectralConv
+from denoising.models.conv import FourierSpectralConv
 
 
 @pytest.mark.parametrize('in_channels', [1, 3])
@@ -10,7 +10,7 @@ from denoising.models.conv import SpectralConv
 @pytest.mark.parametrize('modes', [2, 32])
 @pytest.mark.parametrize('s', [50, 100])
 @pytest.mark.parametrize('factorization', ['tucker', 'dense'])
-def test_spectral_conv(
+def test_fourier_conv(
     in_channels: int,
     out_channels: int,
     modes: int,
@@ -33,7 +33,7 @@ def test_spectral_conv(
     }
 
     _ = torch.manual_seed(42)
-    model = SpectralConv(
+    model = FourierSpectralConv(
         **common_kwargs,
     ).to(device)
 
