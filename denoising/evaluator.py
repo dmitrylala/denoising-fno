@@ -10,6 +10,10 @@ from .data.utils import Batch
 from .metrics import Metrics
 from .models import ModelRegistry
 
+__all__ = [
+    'Evaluator',
+]
+
 
 class Evaluator:
     def __init__(

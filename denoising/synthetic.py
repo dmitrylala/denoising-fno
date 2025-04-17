@@ -10,6 +10,11 @@ from tqdm import tqdm
 
 from .data import BSD300Synthetic
 
+__all__ = [
+    'generate_synthetic',
+    'load_bsd_synthetic',
+]
+
 
 def generate_synthetic(
     dset: Sequence[np.ndarray],

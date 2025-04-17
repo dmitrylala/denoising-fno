@@ -2,11 +2,15 @@ from collections import UserDict
 
 from torch.utils.data import DataLoader
 
-from denoising.configs import BSDDatasetConfig, FNODatasetConfig
+from config import BSDDatasetConfig, FNODatasetConfig
 
 from .bsd_datasets import BSD300Synthetic
 from .fno_dataset import FNODataset
 from .utils import collate_wrapper
+
+__all__ = [
+    'DatasetRegistry',
+]
 
 
 class DatasetRegistry(UserDict):

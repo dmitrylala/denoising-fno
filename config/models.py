@@ -1,8 +1,8 @@
 from copy import deepcopy
 from pathlib import Path
 
-from denoising import make_model_config
-from denoising.configs import ModelConfig
+from .configs import ModelConfig
+from .utils import make_model_config
 
 
 def get_model_configs(weights_dir: Path) -> dict[str, ModelConfig]:

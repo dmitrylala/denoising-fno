@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from denoising import make_bsd_dset_config, make_fno_dset_config, make_load_params
-from denoising.configs import FNODatasetConfig
+from .configs import FNODatasetConfig
+from .utils import make_bsd_dset_config, make_fno_dset_config, make_load_params
 
 
 def get_datasets_configs(data_dir: Path) -> dict[str, FNODatasetConfig]:

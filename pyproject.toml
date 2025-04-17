@@ -65,10 +65,14 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "notebooks/*" = ["ALL"]
+"denoising/trainer.py" = [
+    "T201",      # Print found
+]
 "scripts/*" = [
     "INP001",    # File is part of an implicit namespace package
     "G004",      # Logging statements with f-strings
     "EXE003",    # Shebang should contain `python`
+    "T201",      # Print found
 ]
 "config/*" = [
     "E501",      # Line too long

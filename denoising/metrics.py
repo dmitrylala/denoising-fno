@@ -3,7 +3,11 @@ from collections import defaultdict
 import torch
 from torchmetrics.metric import Metric
 
-from .configs import MetricConfig
+from config import MetricConfig
+
+__all__ = [
+    'Metrics',
+]
 
 
 class Metrics:

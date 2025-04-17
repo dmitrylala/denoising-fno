@@ -13,4 +13,4 @@ class ModelConfig(BaseModel):
 
     fno_cfg: dict
     weights_path: ExistingPath | None
-    model_class: type
+    model_class_name: str

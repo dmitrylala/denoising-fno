@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from denoising.configs import Environment
+from config import Environment
 
 if TYPE_CHECKING:
     from asyncio.events import AbstractEventLoop
