@@ -49,13 +49,13 @@ class TrainConfig(BaseModel):
     random_seed: NonNegativeInt
     device: Device
     run_name: str
-    save_weights_path: Path
+    save_weights_path: Path | None = None
 
     # Train params
     n_epochs: int
     lr: float
     wandb_log: bool = False
-    save_dir: Path
+    save_dir: Path = Path('./ckpt')
     verbose: bool = False
 
     @field_serializer('device')

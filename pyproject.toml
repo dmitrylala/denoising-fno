@@ -19,6 +19,7 @@ dependencies = [
     "torchvision>=0.21.0",
     "neuraloperator @ git+https://github.com/neuraloperator/neuraloperator.git",
     "tqdm>=4.67.1",
+    "optuna>=4.3.0",
 ]
 
 [build-system]

@@ -4,6 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 from timeit import default_timer
 
+import optuna
 import torch
 from torch import nn
 
@@ -94,12 +95,14 @@ class Trainer:
         # save_every and/or save_best is provided
         self.save_dir = save_dir
 
-    def train(
+    def train(  # noqa: C901, D417, PLR0913
         self,
         train_loader: torch.utils.data.DataLoader,
         test_loaders: dict[str, torch.utils.data.DataLoader],
         training_loss: Callable,
         eval_losses: dict[str, Callable] | None = None,
+        trial=None,  # noqa: ANN001
+        trial_obj: str = 'test_l2',
     ) -> dict[str, float]:
         """
         Trains the given model on the given dataset.
@@ -116,6 +119,7 @@ class Trainer:
             cost function to minimize
         eval_losses: dict[Loss]
             dict of losses to use in self.eval()
+        trial: optuna trial, optional
 
         Returns
         -------
@@ -175,6 +179,14 @@ class Trainer:
                 eval_metrics = self.evaluate_all(
                     epoch=epoch, eval_losses=eval_losses, test_loaders=test_loaders
                 )
+
+                # for optuna hyperparam optimization
+                if trial is not None:
+                    trial.report(float(eval_metrics[trial_obj]), epoch)
+
+                    # Handle pruning based on the intermediate value.
+                    if trial.should_prune():
+                        raise optuna.exceptions.TrialPruned
 
                 epoch_metrics.update(**eval_metrics)
                 # save checkpoint if conditions are met
