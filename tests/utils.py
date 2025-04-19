@@ -1,23 +1,20 @@
 import numpy as np
+import torch
+
+BACKEND_NP = 'numpy'
+BACKEND_TORCH = 'torch'
 
 
-def fft2d(c: np.ndarray) -> np.ndarray:
-    return np.fft.fftshift(np.fft.fft2(c))
-
-
-def conv2d_fft(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    convolved_fft = fft2d(x) * fft2d(y)
-    return np.fft.ifft2(np.fft.ifftshift(convolved_fft)).real
-
-
-def make_impulse(size: int) -> tuple[np.ndarray, np.ndarray]:
+def make_impulse(size: int, backend: str = BACKEND_NP) -> tuple:
     x = np.ones((size, size))
     x_dht = np.zeros((size, size))
     x_dht[0, 0] = size**2
+    if backend == BACKEND_TORCH:
+        x, x_dht = torch.tensor(x), torch.tensor(x_dht)
     return x, x_dht
 
 
-def make_cos2d(size: int, k: int) -> tuple[np.ndarray, np.ndarray]:
+def make_cos2d(size: int, k: int, backend: str = BACKEND_NP) -> tuple:
     c = 2.0 * np.pi * k / size
     i = np.arange(size)
     x = np.cos(c * i)
@@ -30,4 +27,6 @@ def make_cos2d(size: int, k: int) -> tuple[np.ndarray, np.ndarray]:
     x_dht[-k][-k] += val
     x_dht[-k][k] += val
 
+    if backend == BACKEND_TORCH:
+        x, x_dht = torch.tensor(x), torch.tensor(x_dht)
     return x, x_dht

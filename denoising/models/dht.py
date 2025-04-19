@@ -1,12 +1,24 @@
+import numpy as np
 import torch
 
 __all__ = [
     'even',
     'flip',
+    'flip_new',
     'isdht2d',
     'odd',
     'sdht2d',
 ]
+
+
+def flip_new(x: torch.Tensor, axes: int | tuple | None = None) -> torch.Tensor:
+    if axes is None:
+        axes = (-2, -1)
+
+    if isinstance(axes, int):
+        axes = (axes,)
+
+    return torch.roll(torch.flip(x, axes), shifts=(1,) * len(axes), dims=axes)
 
 
 def flip(x: torch.Tensor, axes: int | tuple[int]) -> torch.Tensor:

@@ -64,6 +64,37 @@ def get_model_configs(weights_dir: Path) -> dict[str, ModelConfig]:
             weights_dir / 'mri/run-15-weights.pt',
             'FNO',
         ),
+        'mri-hno-v4': make_model_config(
+            {
+                'n_modes': (8, 8),
+                'in_channels': 1,
+                'hidden_channels': 32,
+                'lifting_channel_ratio': 6,
+                'projection_channel_ratio': 32,
+                'out_channels': 1,
+                'factorization': 'dense',
+                'n_layers': 4,
+                'rank': 0.42,
+                'spectral': 'hartley-v4',
+            },
+            weights_dir / 'mri/run-24-weights.pt',
+            'FNO',
+        ),
+        # 'mri-fno-tucker-2': make_model_config(
+        #     {
+        #         'n_modes': (32, 32),
+        #         'in_channels': 1,
+        #         'hidden_channels': 32,
+        #         'lifting_channel_ratio': 8,
+        #         'projection_channel_ratio': 2,
+        #         'out_channels': 1,
+        #         'factorization': 'tucker',
+        #         'n_layers': 4,
+        #         'rank': 0.42,
+        #     },
+        #     weights_dir / 'mri/run-25-weights.pt',
+        #     'FNO',
+        # ),
         # trained in SIDD patches
         'sidd-fno-run2': make_model_config(
             fno_cfg_sidd,

@@ -8,6 +8,7 @@ from .conv import (
     FourierSpectralConv,
     HartleySeparableSpectralConv,
     HartleySpectralConv,
+    HartleySpectralConvV4,
 )
 from .soft_gating import SoftGating
 
@@ -88,6 +89,8 @@ class FNOBlocks(nn.Module):
             conv_module = HartleySeparableSpectralConv
         elif spectral == 'hartley':
             conv_module = HartleySpectralConv
+        elif spectral == 'hartley-v4':
+            conv_module = HartleySpectralConvV4
         else:
             msg = f'Unknown spectral module: {spectral}'
             raise ValueError(msg)
