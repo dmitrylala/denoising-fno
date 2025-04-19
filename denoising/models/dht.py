@@ -2,16 +2,27 @@ import numpy as np
 import torch
 
 __all__ = [
-    'even',
-    'flip',
-    'flip_new',
-    'isdht2d',
-    'odd',
-    'sdht2d',
+    'dht2d',
+    'flip_periodic',
 ]
 
 
-def flip_new(x: torch.Tensor, axes: int | tuple | None = None) -> torch.Tensor:
+def dht2d(x: torch.Tensor, is_inverse: bool = False) -> torch.Tensor:
+    if not is_inverse:
+        x_ft = torch.fft.fftshift(torch.fft.fft2(x, norm='backward'), dim=(-2, -1))
+    else:
+        x_ft = torch.fft.fft2(torch.fft.ifftshift(x, dim=(-2, -1)), norm='backward')
+
+    x_ht = x_ft.real - x_ft.imag
+
+    if is_inverse:
+        n = x.size()[-2:].numel()
+        x_ht = x_ht / n
+
+    return x_ht
+
+
+def flip_periodic(x: torch.Tensor, axes: int | tuple | None = None) -> torch.Tensor:
     if axes is None:
         axes = (-2, -1)
 
@@ -19,64 +30,3 @@ def flip_new(x: torch.Tensor, axes: int | tuple | None = None) -> torch.Tensor:
         axes = (axes,)
 
     return torch.roll(torch.flip(x, axes), shifts=(1,) * len(axes), dims=axes)
-
-
-def flip(x: torch.Tensor, axes: int | tuple[int]) -> torch.Tensor:
-    if isinstance(axes, int):
-        axes = (axes,)
-
-    flipped = x
-    for ax in axes:
-        flipped = torch.roll(torch.flip(x, dims=(ax,)), shifts=(1,), dims=(ax,))
-    return flipped
-
-
-def sdht2d(
-    x: torch.Tensor,
-    norm: str,
-    dim: tuple[int],
-    s: tuple[int] | None = None,
-    inv: bool = False,
-) -> torch.Tensor:
-    if inv:
-        fft = torch.fft.fft2(x.float(), norm=norm, dim=dim, s=s)
-    else:
-        fft = torch.fft.rfft2(x.float(), norm=norm, dim=dim, s=s)
-    fft_flipped_y = flip(fft, axes=3)
-    return fft_flipped_y.real - fft.imag
-
-
-def dht2d(
-    x: torch.Tensor,
-    norm: str,
-    dim: tuple[int],
-    s: tuple[int] | None = None,
-    inv: bool = False,
-) -> torch.Tensor:
-    if inv:
-        fft = torch.fft.fft2(x.float(), norm=norm, dim=dim, s=s)
-    else:
-        fft = torch.fft.rfft2(x.float(), norm=norm, dim=dim, s=s)
-    return fft.real - fft.imag
-
-
-def even(x: torch.Tensor) -> torch.Tensor:
-    flipped = flip(x, axes=(-2, -1))
-    return (x + flipped) / 2
-
-
-def odd(x: torch.Tensor) -> torch.Tensor:
-    flipped = flip(x, axes=(-2, -1))
-    return (x - flipped) / 2
-
-
-def isdht2d(x: torch.Tensor, s: tuple[int], norm: str, dim: tuple[int]) -> torch.Tensor:
-    n = x.size()[-2:].numel()
-    x_dht = sdht2d(x, norm=norm, dim=dim, s=s, inv=True)
-    return 1.0 / n * x_dht
-
-
-def idht2d(x: torch.Tensor, s: tuple[int], norm: str, dim: tuple[int]) -> torch.Tensor:
-    n = x.size()[-2:].numel()
-    x_dht = dht2d(x, norm=norm, dim=dim, s=s, inv=True)
-    return 1.0 / n * x_dht

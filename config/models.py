@@ -21,14 +21,6 @@ def get_model_configs(weights_dir: Path) -> dict[str, ModelConfig]:
     fno_cfg_mri_dense = deepcopy(fno_cfg_mri)
     fno_cfg_mri_dense['factorization'] = 'dense'
 
-    fno_cfg_mri_hno_separable = deepcopy(fno_cfg_mri)
-    fno_cfg_mri_hno_separable['factorization'] = 'dense'
-    fno_cfg_mri_hno_separable['spectral'] = 'hartley-separable'
-
-    fno_cfg_mri_hno = deepcopy(fno_cfg_mri)
-    fno_cfg_mri_hno['factorization'] = 'dense'
-    fno_cfg_mri_hno['spectral'] = 'hartley'
-
     fno_cfg_sidd = deepcopy(fno_cfg_mri)
     fno_cfg_sidd['in_channels'] = 3
     fno_cfg_sidd['out_channels'] = 3
@@ -46,25 +38,37 @@ def get_model_configs(weights_dir: Path) -> dict[str, ModelConfig]:
             weights_dir / 'mri/run-6-weights.pt',
             'TFNO',
         ),
-        'mri-fno-custom': make_model_config(
-            fno_cfg_mri, weights_dir / 'mri/run-8-weights.pt', 'FNO'
+        'mri-fno-tucker': make_model_config(
+            {
+                'n_modes': (32, 32),
+                'in_channels': 1,
+                'hidden_channels': 32,
+                'lifting_channel_ratio': 8,
+                'projection_channel_ratio': 2,
+                'out_channels': 1,
+                'factorization': 'tucker',
+                'n_layers': 4,
+                'rank': 0.42,
+            },
+            weights_dir / 'mri/run-25-weights.pt',
+            'FNO',
         ),
         'mri-fno-dense': make_model_config(
-            fno_cfg_mri_dense,
-            weights_dir / 'mri/run-13-weights.pt',
+            {
+                'n_modes': (32, 32),
+                'in_channels': 1,
+                'hidden_channels': 32,
+                'lifting_channel_ratio': 8,
+                'projection_channel_ratio': 2,
+                'out_channels': 1,
+                'factorization': 'dense',
+                'n_layers': 4,
+                'rank': 0.42,
+            },
+            weights_dir / 'mri/run-26-weights.pt',
             'FNO',
         ),
-        'mri-hno-separable': make_model_config(
-            fno_cfg_mri_hno_separable,
-            weights_dir / 'mri/run-14-weights.pt',
-            'FNO',
-        ),
-        'mri-hno-v2': make_model_config(
-            fno_cfg_mri_hno,
-            weights_dir / 'mri/run-15-weights.pt',
-            'FNO',
-        ),
-        'mri-hno-v4': make_model_config(
+        'mri-hno': make_model_config(
             {
                 'n_modes': (8, 8),
                 'in_channels': 1,
@@ -75,26 +79,11 @@ def get_model_configs(weights_dir: Path) -> dict[str, ModelConfig]:
                 'factorization': 'dense',
                 'n_layers': 4,
                 'rank': 0.42,
-                'spectral': 'hartley-v4',
+                'spectral': 'hartley',
             },
-            weights_dir / 'mri/run-24-weights.pt',
+            weights_dir / 'mri/run-27-weights.pt',
             'FNO',
         ),
-        # 'mri-fno-tucker-2': make_model_config(
-        #     {
-        #         'n_modes': (32, 32),
-        #         'in_channels': 1,
-        #         'hidden_channels': 32,
-        #         'lifting_channel_ratio': 8,
-        #         'projection_channel_ratio': 2,
-        #         'out_channels': 1,
-        #         'factorization': 'tucker',
-        #         'n_layers': 4,
-        #         'rank': 0.42,
-        #     },
-        #     weights_dir / 'mri/run-25-weights.pt',
-        #     'FNO',
-        # ),
         # trained in SIDD patches
         'sidd-fno-run2': make_model_config(
             fno_cfg_sidd,

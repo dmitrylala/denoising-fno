@@ -4,7 +4,7 @@ import pytest
 import torch
 from neuralop.layers.spectral_convolution import SpectralConv as SpecGt
 
-from denoising.models.conv import FourierSpectralConv, HartleySpectralConvV4
+from denoising.models.conv import FourierSpectralConv, HartleySpectralConv
 
 
 @pytest.mark.parametrize('in_channels', [1, 3])
@@ -70,10 +70,34 @@ def test_fourier_conv(
     torch.testing.assert_close(out, gt_out)
 
 
-@pytest.mark.parametrize('in_channels', [1, 3])
-@pytest.mark.parametrize('out_channels', [1, 3])
-@pytest.mark.parametrize('modes', [2, 16])
-@pytest.mark.parametrize('s', [50, 100])
+@pytest.mark.parametrize(
+    'in_channels',
+    [
+        1,
+        3,
+    ],
+)
+@pytest.mark.parametrize(
+    'out_channels',
+    [
+        1,
+        3,
+    ],
+)
+@pytest.mark.parametrize(
+    'modes',
+    [
+        2,
+        16,
+    ],
+)
+@pytest.mark.parametrize(
+    's',
+    [
+        50,
+        100,
+    ],
+)
 def test_hartley_conv(
     in_channels: int,
     out_channels: int,
@@ -101,7 +125,7 @@ def test_hartley_conv(
     gt_out = torch.load(tests_data_dir / f'hartley-out-{params}.pt').to(device)
 
     _ = torch.manual_seed(42)
-    model = HartleySpectralConvV4(
+    model = HartleySpectralConv(
         **common_kwargs,
     ).to(device)
 

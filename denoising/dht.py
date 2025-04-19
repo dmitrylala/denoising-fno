@@ -51,13 +51,6 @@ def conv2d_fft(
     return ifft2d(fft2d(x) * fft2d(y))
 
 
-def conv2d_fft_inv(
-    x: np.ndarray | torch.Tensor,
-    y: np.ndarray | torch.Tensor,
-) -> np.ndarray | torch.Tensor:
-    return ifft2d(fft2d(x) * y)
-
-
 def sdht2d(x: np.ndarray | torch.Tensor, norm: str = 'backward') -> np.ndarray | torch.Tensor:
     """
     Separable Discrete Hartley Transform. Calculated using the Discrete Fourier Transform.
@@ -147,21 +140,6 @@ def idht2d(x: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
     return dht2d(x) / n
 
 
-def dht2d_ort(x: np.ndarray | torch.Tensor, norm: str = 'ortho') -> np.ndarray | torch.Tensor:
-    if isinstance(x, np.ndarray):
-        fft = np.fft.fft2(x, axes=(0, 1))
-    elif isinstance(x, torch.Tensor):
-        fft = torch.fft.fft2(x, norm=norm)
-    return fft.real - fft.imag
-
-
-def idht2d_ort(x: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
-    if isinstance(x, torch.Tensor):
-        return dht2d_ort(x)
-    n = np.prod(x.shape[:2])
-    return dht2d_ort(x) / n
-
-
 def conv2d_dht(
     x: np.ndarray | torch.Tensor,
     w: np.ndarray | torch.Tensor,
@@ -172,18 +150,3 @@ def conv2d_dht(
     w_dht = dht2d(w)
 
     return idht2d(even(x_dht) * w_dht + odd(x_dht) * flip(w_dht))
-
-
-def conv2d_dht_ort(
-    x: np.ndarray | torch.Tensor,
-    w: np.ndarray | torch.Tensor,
-) -> np.ndarray | torch.Tensor:
-    # return idht2d_ort(dht2d_ort(2 * (x + w)))
-
-    h1f = dht2d_ort(x)
-    h2f = dht2d_ort(w)
-
-    h1mf = dht2d_ort(-x)
-    h2mf = dht2d_ort(-w)
-
-    return idht2d_ort((h1f * h2f + h1mf * h2f + h1f * h2mf - h1mf * h2mf) / 2)

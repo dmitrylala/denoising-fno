@@ -14,7 +14,7 @@ if __name__ == '__main__':
     env = Environment(_env_file=cwd / 'env')
     wandb.login(key=env.wandb_api_key)
 
-    run_idx = 17
+    run_idx = 30
     save_dir = cwd / 'notebooks/mri'
 
     cfg = TrainConfig(
@@ -24,7 +24,7 @@ if __name__ == '__main__':
         train_batch_size=128,
         test_batch_size=256,
         # Model params
-        name_model='mri-hno-v2-retrain',
+        name_model='mri-hno',
         cfg_fno={
             'n_modes': (32, 32),
             'in_channels': 1,
@@ -40,7 +40,7 @@ if __name__ == '__main__':
         # Run params
         random_seed=42,
         device='cuda:2',
-        run_name=f'Run {run_idx}, HNO v2 (retrain)',
+        run_name=f'Run {run_idx}, HNO',
         save_weights_path=save_dir / f'run-{run_idx}-weights.pt',
         # Train params
         n_epochs=50,

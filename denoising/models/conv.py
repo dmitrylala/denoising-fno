@@ -10,13 +10,7 @@ from torch import nn
 
 from .dht import (
     dht2d,
-    even,
-    flip,
-    flip_new,
-    idht2d,
-    isdht2d,
-    odd,
-    sdht2d,
+    flip_periodic,
 )
 
 tl.set_backend('pytorch')
@@ -25,9 +19,7 @@ EINSUM_SYMBOLS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 __all__ = [
     'FourierSpectralConv',
-    'HartleySeparableSpectralConv',
     'HartleySpectralConv',
-    'HartleySpectralConvV4',
 ]
 
 
@@ -56,7 +48,7 @@ def contract_dense(x: torch.Tensor, w: nn.Parameter) -> torch.Tensor:
     return tl.einsum('bixy,ioxy->boxy', x, w)
 
 
-class BaseSpectralConv(nn.Module):
+class FourierSpectralConv(nn.Module):
     """
     Generic N-Dimensional Fourier Neural Operator.
 
@@ -149,23 +141,6 @@ class BaseSpectralConv(nn.Module):
         n_modes[-1] = n_modes[-1] // 2 + 1
         self._n_modes = n_modes
 
-    @abstractmethod
-    def forward_spectral(self, x: torch.Tensor, dims: tuple[int]) -> torch.Tensor:
-        pass
-
-    @abstractmethod
-    def conv_spectral(self, x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
-        pass
-
-    @abstractmethod
-    def inverse_spectral(
-        self,
-        x: torch.Tensor,
-        sizes: tuple[int],
-        dims: tuple[int],
-    ) -> torch.Tensor:
-        pass
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Generic forward pass for the Factorized Spectral Conv.
@@ -188,9 +163,8 @@ class BaseSpectralConv(nn.Module):
         # Compute Fourier coeffcients
         fft_dims = list(range(-self.order, 0))
 
-        x = self.forward_spectral(x, dims=fft_dims)
+        x = torch.fft.rfftn(x, norm=self.fft_norm, dim=fft_dims)
 
-        # if self.apply_shift and self.order > 1:
         x = torch.fft.fftshift(x, dim=fft_dims[:-1])
 
         out_fft = torch.zeros(
@@ -234,12 +208,11 @@ class BaseSpectralConv(nn.Module):
         # The last mode already has redundant half removed
         slices_x += [slice(None, -starts[-1]) if starts[-1] else slice(None)]
 
-        out_fft[slices_x] = self.conv_spectral(x[slices_x], weight)
+        out_fft[slices_x] = self._contract(x[slices_x], weight)
 
-        # if self.apply_shift and self.order > 1:
         out_fft = torch.fft.ifftshift(out_fft, dim=fft_dims[:-1])
 
-        x = self.inverse_spectral(out_fft, sizes=mode_sizes, dims=fft_dims)
+        x = torch.fft.irfftn(out_fft, s=mode_sizes, dim=fft_dims, norm=self.fft_norm)
 
         if self.bias is not None:
             x = x + self.bias
@@ -247,92 +220,13 @@ class BaseSpectralConv(nn.Module):
         return x
 
 
-class FourierSpectralConv(BaseSpectralConv):
-    def forward_spectral(self, x: torch.Tensor, dims: tuple[int]) -> torch.Tensor:
-        return torch.fft.rfftn(x, norm=self.fft_norm, dim=dims)
-
-    def conv_spectral(self, x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
-        return self._contract(x, w)
-
-    def inverse_spectral(
-        self,
-        x: torch.Tensor,
-        sizes: tuple[int],
-        dims: tuple[int],
-    ) -> torch.Tensor:
-        return torch.fft.irfftn(x, s=sizes, dim=dims, norm=self.fft_norm)
-
-
-class HartleySeparableSpectralConv(BaseSpectralConv):
-    def __init__(self, **kwargs) -> None:  # noqa: ANN003
-        kwargs.update({'apply_shift': False, 'dtype': torch.float, 'factorization': 'dense'})
-        super().__init__(**kwargs)
-
-    def forward_spectral(self, x: torch.Tensor, dims: tuple[int]) -> torch.Tensor:
-        return sdht2d(x, norm=self.fft_norm, dim=dims)
-
-    def conv_spectral(self, x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
-        x_dht_flipy = flip(x, axes=3)
-        w_dht_flipy = flip(w, axes=3)
-
-        return (
-            self._contract(even(x), even(w))
-            - self._contract(odd(x_dht_flipy), odd(w_dht_flipy))
-            + self._contract(even(x_dht_flipy), odd(w))
-            + self._contract(odd(x), even(w_dht_flipy))
-        )
-
-    def inverse_spectral(
-        self,
-        x: torch.Tensor,
-        sizes: tuple[int],
-        dims: tuple[int],
-    ) -> torch.Tensor:
-        return isdht2d(x, s=sizes, dim=dims, norm=self.fft_norm)
-
-
-class HartleySpectralConv(BaseSpectralConv):
-    def __init__(self, **kwargs) -> None:  # noqa: ANN003
-        kwargs.update({'apply_shift': False, 'dtype': torch.float, 'factorization': 'dense'})
-        super().__init__(**kwargs)
-
-    def forward_spectral(self, x: torch.Tensor, dims: tuple[int]) -> torch.Tensor:
-        return dht2d(x, norm=self.fft_norm, dim=dims)
-
-    # R_H = P_HE * Q_H + P_HO * Q_H(-u,-v)  # noqa: ERA001
-    def conv_spectral(self, x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
-        x_even = even(x)
-        x_odd = odd(x)
-        return self._contract(x_even, w) + self._contract(x_odd, flip(w, (-2, -1)))
-
-    def inverse_spectral(
-        self,
-        x: torch.Tensor,
-        sizes: tuple[int],
-        dims: tuple[int],
-    ) -> torch.Tensor:
-        return idht2d(x, s=sizes, dim=dims, norm=self.fft_norm)
-
-
-def dht2d_new(x: torch.Tensor, is_inverse: bool = False) -> torch.Tensor:
-    x_ft = torch.fft.fft2(x, norm='backward')  # norm='backward' applies no normalization
-    x_ht = x_ft.real - x_ft.imag
-
-    if is_inverse:
-        n = x.size()[-2:].numel()
-        x_ht = x_ht / n
-
-    return x_ht
-
-
-class HartleySpectralConvV4(nn.Module):
+class HartleySpectralConv(nn.Module):
     def __init__(  # noqa: PLR0913
         self,
         in_channels: int,
         out_channels: int,
         n_modes: int | tuple[int],
         factorization: str = 'dense',
-        fft_norm: str = 'forward',
         bias: bool = True,
         dtype: torch.dtype = torch.float,
         **_,  # noqa: ANN003
@@ -345,13 +239,7 @@ class HartleySpectralConvV4(nn.Module):
 
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.factorization = factorization
-
-        # n_modes is the total number of modes kept along each dimension
-        self.n_modes = n_modes
-        self.order = len(self.n_modes)
-
-        self.fft_norm = fft_norm
+        self.n_modes = n_modes  # n_modes is the total number of modes kept along each dimension
 
         # Create spectral weight tensor
         init_std = (2 / (in_channels + out_channels)) ** 0.5
@@ -370,7 +258,7 @@ class HartleySpectralConvV4(nn.Module):
         self.bias = None
         if bias:
             self.bias = nn.Parameter(
-                init_std * torch.randn(*((self.out_channels,) + (1,) * self.order)),
+                init_std * torch.randn(*((out_channels,) + (1,) * len(self.n_modes))),
             )
 
     def hartley_conv(
@@ -385,76 +273,41 @@ class HartleySpectralConvV4(nn.Module):
         return self._contract(x_even, kernel) + self._contract(x_odd, kernel_reverse)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        batch_size, _, h, w = x.size()
+        _, _, h, w = x.size()
         modes_h, modes_w = self.n_modes
         if h < 2 * modes_h or w < 2 * modes_w:
             msg = f'Expected input with bigger spatial dims: h>={w * modes_h}, w>={2 * modes_w}, got: {h=}, {w=}'  # noqa: E501
             raise ValueError(msg)
 
-        # a = torch.fft.fftshift(torch.fft.fft2(x, norm='backward'))
-        # x_shifted = a.real - a.imag
+        x = dht2d(x)
+        x_reverse = flip_periodic(x)
 
-        x = dht2d_new(x)
-
+        center = tuple(s // 2 for s in x.size()[-2:])
+        slices_x = [
+            slice(None),
+            slice(None),
+            slice(center[0] - modes_h, center[0] + modes_h),
+            slice(center[1] - modes_w, center[1] + modes_w),
+        ]
         kernel = self.weight
-        kernel_reverse = flip_new(kernel)
-        x_reverse = flip_new(x)
-
-        slices_bc = [slice(None), slice(None)]
-
-        slices = [*slices_bc, slice(None, modes_h), slice(None, modes_w)]
-        left_upper = self.hartley_conv(
-            x[slices],
-            x_reverse[slices],
-            kernel[slices],
-            kernel_reverse[slices],
+        kernel_reverse = flip_periodic(kernel)
+        total = self.hartley_conv(
+            x[slices_x],
+            x_reverse[slices_x],
+            kernel,
+            kernel_reverse,
         )
 
-        # c = tuple(s // 2 - 1 for s in x.size()[-2:])
-        # x_shifted_reverse = flip_new(x_shifted)
-        # slices_x =  [*slices_bc, slice(None, modes_h), slice(-modes_w, None)]
-        # slices_w =  [*slices_bc, slice(None, modes_h), slice(None, modes_w)]
-        # left_upper = self.hartley_conv(
-        #     x_shifted[slices_x], x_shifted_reverse[slices_x],
-        #     kernel[slices_w], kernel_reverse[slices_w],
-        # )
+        # pad with zeros before idht
+        pad = [
+            (w - 2 * modes_w) // 2,
+            (w - 2 * modes_w) // 2 + int(w % 2 == 1),
+            (h - 2 * modes_h) // 2,
+            (h - 2 * modes_h) // 2 + int(h % 2 == 1),
+        ]
+        x = torch.nn.functional.pad(total, pad, mode='constant', value=0)
 
-        slices = [*slices_bc, slice(None, modes_h), slice(-modes_w, None)]
-        right_upper = self.hartley_conv(
-            x[slices],
-            x_reverse[slices],
-            kernel[slices],
-            kernel_reverse[slices],
-        )
-
-        slices = [*slices_bc, slice(-modes_h, None), slice(None, modes_w)]
-        left_down = self.hartley_conv(
-            x[slices],
-            x_reverse[slices],
-            kernel[slices],
-            kernel_reverse[slices],
-        )
-
-        slices = [*slices_bc, slice(-modes_h, None), slice(-modes_w, None)]
-        right_down = self.hartley_conv(
-            x[slices],
-            x_reverse[slices],
-            kernel[slices],
-            kernel_reverse[slices],
-        )
-
-        # concat corners along y axis with zero padding between
-        pad_shape = [batch_size, self.out_channels, modes_h, w - 2 * modes_w]
-        pad_zeros = torch.zeros(pad_shape, dtype=x.dtype, device=x.device)
-        upper = torch.concat([left_upper, pad_zeros, right_upper], axis=-1)
-        down = torch.concat([left_down, pad_zeros, right_down], axis=-1)
-
-        # concat upper and down fragments along x axis with zero padding between
-        pad_shape = [batch_size, self.out_channels, h - 2 * modes_h, w]
-        pad_zeros = torch.zeros(pad_shape, dtype=x.dtype, device=x.device)
-        x = torch.concat([upper, pad_zeros, down], axis=-2)
-
-        x = dht2d_new(x, is_inverse=True)
+        x = dht2d(x, is_inverse=True)
 
         if self.bias is not None:
             x = x + self.bias

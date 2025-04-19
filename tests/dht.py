@@ -7,15 +7,11 @@ import torch
 
 from denoising.dht import (
     conv2d_dht,
-    conv2d_dht_ort,
     conv2d_fft,
-    conv2d_fft_inv,
     conv2d_sdht,
     dht2d,
-    dht2d_ort,
     fft2d,
     idht2d,
-    idht2d_ort,
     ifft2d,
     isdht2d,
     sdht2d,
@@ -94,7 +90,8 @@ def test_idht2d_cosine(idht_fn: Callable, k: int, backend: str) -> None:
 
 
 @pytest.mark.parametrize('backend', [BACKEND_NP, BACKEND_TORCH])
-@pytest.mark.parametrize('size',
+@pytest.mark.parametrize(
+    'size',
     [
         (3, 3),
         (10, 2),
@@ -106,12 +103,14 @@ def test_idht2d_cosine(idht_fn: Callable, k: int, backend: str) -> None:
         (1000, 1000),
     ],
 )
-@pytest.mark.parametrize('call', [
-    lambda x: isdht2d(sdht2d(x)),
-    lambda x: idht2d(dht2d(x)),
-    lambda x: idht2d_ort(dht2d_ort(x)),
-    lambda x: ifft2d(fft2d(x)),
-])
+@pytest.mark.parametrize(
+    'call',
+    [
+        lambda x: isdht2d(sdht2d(x)),
+        lambda x: idht2d(dht2d(x)),
+        lambda x: ifft2d(fft2d(x)),
+    ],
+)
 def test_inverse(size: tuple[int], call: Callable, backend: str) -> None:
     rng = np.random.default_rng(42)
     seed_everything(42)
@@ -140,7 +139,6 @@ def test_inverse(size: tuple[int], call: Callable, backend: str) -> None:
     [
         conv2d_sdht,
         conv2d_dht,
-        # conv2d_dht_ort,
     ],
 )
 @pytest.mark.parametrize(
@@ -180,10 +178,8 @@ def test_conv_theorem(
     z_gt = conv2d_fft(x, y)
     msg = f'{inspect.stack()[0][3]} test failed'
     if backend == BACKEND_NP:
-        print(np.max(np.abs(z - z_gt)))
         assert isinstance(z, np.ndarray)
         np.testing.assert_allclose(z, z_gt, err_msg=msg)
     else:
-        print(torch.max(torch.abs(z - z_gt)))
         assert isinstance(z, torch.Tensor)
         torch.testing.assert_close(z, z_gt, msg=msg)
