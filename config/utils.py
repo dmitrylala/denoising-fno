@@ -38,12 +38,14 @@ def make_fno_dset_config(
     sample_list: str,
     load_params: list[LoadParams],
     normalize: bool = False,
+    resize_y: bool = False,
 ) -> FNODatasetConfig:
     return FNODatasetConfig(
         root=Path(root),
         sample_list=Path(sample_list),
         load_params=load_params,
         normalize=normalize,
+        resize_y=resize_y,
     )
 
 

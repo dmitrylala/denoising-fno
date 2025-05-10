@@ -35,11 +35,13 @@ def get_datasets_configs(data_dir: Path) -> dict[str, FNODatasetConfig]:
             mri_root,
             data_dir / 'MRI/lists/IXI_0_1/train_gtLR_gibbsnoiseLR_train_train.csv',
             gt_load_params,
+            resize_y=True,
         ),
         'mri_gt_val': make_fno_dset_config(
             mri_root,
             data_dir / 'MRI/lists/IXI_0_1/train_gtLR_gibbsnoiseLR_train_val.csv',
             gt_load_params,
+            resize_y=True,
         ),
         'mri_gt_test': make_fno_dset_config(
             mri_root,

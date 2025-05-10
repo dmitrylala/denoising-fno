@@ -23,9 +23,13 @@ wheels/
 .env
 env
 
-# Weights and wandb runs
+# Weights, wandb runs, optuna trials caches
 notebooks/mri
 notebooks/bsd
 notebooks/sidd_patches
+notebooks/ckpt
 notebooks/run-*
 notebooks/wandb
+notebooks/*.db
+notebooks/*-sampler
+notebooks/*.png

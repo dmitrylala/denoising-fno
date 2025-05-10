@@ -28,3 +28,4 @@ class FNODatasetConfig(BaseModel):
     load_params: list[LoadParams]
     transforms: list | None = None
     normalize: bool = False
+    resize_y: bool = False

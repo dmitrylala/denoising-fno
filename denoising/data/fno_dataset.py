@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from torchvision.transforms import Resize
 
 from .file_dataset import FileDataset
 
@@ -11,13 +12,14 @@ __all__ = [
 
 
 class FNODataset(FileDataset):
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         root: str | Path,
         sample_list: str | Path,
         load_params: list[dict],
         transforms: list | None = None,
         normalize: bool = False,
+        resize_y: bool = False,
     ) -> None:
         super().__init__(
             root=root,
@@ -26,6 +28,7 @@ class FNODataset(FileDataset):
             transforms=transforms,
         )
         self.normalize = normalize
+        self.resize_y = resize_y
 
     def __getitem__(self, index: int | slice) -> dict[str, torch.Tensor]:
         x, y = super().__getitem__(index)
@@ -42,4 +45,11 @@ class FNODataset(FileDataset):
             # convert to CHW
             return img.permute(2, 0, 1)
 
-        return {'x': to_tensor(x), 'y': to_tensor(y)}
+        x, y = to_tensor(x), to_tensor(y)
+
+        # if y shape is bigger, downscale it to x shape
+        if self.resize_y and x.size()[-1] < y.size()[-1]:
+            rs = Resize(size=x.size()[-1])
+            y = rs(y)
+
+        return {'x': x, 'y': y}
